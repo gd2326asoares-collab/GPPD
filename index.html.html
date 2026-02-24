@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RECLAMAÇÃO 360º · experiência imersiva</title>
+  <!-- Fontes vanguardistas (mais personalidade) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@200..900&family=Archivo+Black&family=Space+Grotesk:wght@300..700&family=Syne:wght@400..800&display=swap" rel="stylesheet">
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Three.js e GSAP (com ScrollTrigger e ScrollTo) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+  <!-- SplitType para animação de caracteres -->
+  <script src="https://unpkg.com/split-type@0.3.4/umd/index.js"></script>
+  <style>
+    /* ---------- RESET & VARIÁVEIS (nova paleta) ---------- */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --roxo-profundo: #7D1756;
+      --roxo-variante: #7B1556;
+      --laranja-vivo: #F04E35;
+      --laranja-medio: #ED4F36;
+      --laranja-gradient: #E84C36;
+      --branco-puro: #FFFFFF;
+      --bg-dark: #0a0a0a;
+      --text-light: #ffffff;
+      --grad-1: linear-gradient(135deg, var(--laranja-vivo), var(--roxo-profundo));
+      --grad-2: linear-gradient(45deg, var(--laranja-medio), var(--roxo-variante));
+      --shadow-neon: 0 20px 40px -12px rgba(240, 78, 53, 0.4);
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      overflow-x: hidden;
+      cursor: none; /* cursor artesanal */
+    }
+
+    /* ----- cursor personalizado (com cores da paleta) ----- */
+    .cursor {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--laranja-vivo);
+      border-radius: 50%;
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      mix-blend-mode: difference;
+      transform: translate(-50%, -50%);
+      transition: transform 0.2s ease, background 0.2s;
+    }
+
+    .cursor-follower {
+      width: 50px;
+      height: 50px;
+      background: rgba(240, 78, 53, 0.1);
+      border-radius: 50%;
+      position: fixed;
+      pointer-events: none;
+      z-index: 9998;
+      transform: translate(-50%, -50%);
+      transition: transform 0.4s ease;
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* ----- navbar com blend mode ----- */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 1.8rem 4rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+      mix-blend-mode: difference;
+      backdrop-filter: blur(4px);
+      background: rgba(10,10,10,0.2);
+    }
+
+    .logo {
+      font-family: 'Archivo Black', sans-serif;
+      font-size: 2.2rem;
+      background: var(--grad-1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 3rem;
+    }
+
+    .nav-links a {
+      color: var(--branco-puro);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      position: relative;
+      padding: 0.5rem 0;
+      font-family: 'Unbounded', sans-serif;
+      font-weight: 300;
+    }
+
+    .nav-links a::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: var(--grad-1);
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .nav-links a:hover::before {
+      width: 100%;
+    }
+
+    /* ----- canvas 3D background ----- */
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+    }
+
+    /* ----- secções com glass effect e snap scroll opcional (mantivemos scroll normal, mas com animações fortes) ----- */
+    section {
+      position: relative;
+      min-height: 100vh;
+      padding: 8rem 4rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      backdrop-filter: blur(12px);
+      background: rgba(10, 10, 10, 0.4);
+      border-bottom: 1px solid rgba(240, 78, 53, 0.15);
+      scroll-snap-align: start; /* opcional, mas não forçado */
+    }
+
+    .section-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* ----- tipografia títulos (mais ousados) ----- */
+    h1, h2, h3 {
+      font-family: 'Unbounded', sans-serif;
+      font-weight: 800;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-size: clamp(3rem, 12vw, 7rem); /* AJUSTADO: tamanho máximo reduzido de 9rem para 7rem */
+      margin-bottom: 2rem;
+      letter-spacing: -0.03em;
+      line-height: 1.1; /* AJUSTADO: melhor espaçamento entre linhas */
+    }
+    
+    /* AJUSTE ESPECÍFICO PARA O TÍTULO PRINCIPAL */
+    #home h1 {
+      font-size: clamp(2.8rem, 10vw, 6rem); /* Tamanho mais controlado */
+      max-width: 100%;
+      word-break: break-word;
+    }
+
+    h2 {
+      font-size: clamp(3rem, 8vw, 5.5rem);
+      margin-bottom: 2rem;
+      background: var(--grad-1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: inline-block;
+    }
+
+    .gradient-text {
+      background: var(--grad-1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-size: 200% 200%;
+      animation: gradientFlow 6s ease infinite;
+      display: inline-block; /* AJUSTADO: garante que o gradiente se comporte bem */
+    }
+
+    @keyframes gradientFlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* texto com split-type */
+    .line { overflow: hidden; }
+    .word, .char { display: inline-block; }
+
+    /* ----- cards 3D com nova paleta ----- */
+    .cards-grid-3d {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      margin: 4rem 0;
+      perspective: 2000px;
+    }
+
+    .card-3d {
+      background: rgba(255, 255, 255, 0.02);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(240, 78, 53, 0.2);
+      border-radius: 40px;
+      padding: 3rem 2rem;
+      transform-style: preserve-3d;
+      transform: rotateY(10deg) rotateX(4deg) translateZ(10px);
+      transition: all 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+      cursor: pointer;
+      box-shadow: 0 30px 40px -30px var(--laranja-vivo);
+    }
+
+    .card-3d:hover {
+      transform: rotateY(0deg) rotateX(0deg) translateY(-25px) scale(1.05);
+      box-shadow: 0 40px 70px -20px var(--laranja-vivo);
+      border-color: var(--laranja-vivo);
+    }
+
+    .card-3d i {
+      font-size: 3.5rem;
+      margin-bottom: 1.5rem;
+      background: var(--grad-1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* ----- timeline 3D ----- */
+    .timeline-3d {
+      display: flex;
+      gap: 1.5rem;
+      margin: 4rem 0;
+      perspective: 2500px;
+      flex-wrap: wrap;
+    }
+
+    .timeline-step-3d {
+      flex: 1 1 180px;
+      background: rgba(125, 23, 86, 0.15);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(240, 78, 53, 0.3);
+      border-radius: 30px;
+      padding: 2rem 1.5rem;
+      transform: rotateY(8deg) translateZ(15px);
+      transition: all 0.4s ease;
+      box-shadow: 0 10px 20px -10px var(--roxo-profundo);
+    }
+
+    .timeline-step-3d:hover {
+      transform: rotateY(0deg) translateZ(40px) scale(1.06);
+      border-color: var(--laranja-vivo);
+      background: rgba(125, 23, 86, 0.3);
+    }
+
+    .step-number {
+      font-size: 3.5rem;
+      font-weight: 800;
+      color: var(--laranja-vivo);
+      margin-bottom: 1rem;
+      font-family: 'Unbounded', sans-serif;
+    }
+
+    /* ----- perfis de cliente (cores dos cards ajustadas) ----- */
+    .perfis-grid-3d {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2rem;
+      margin: 4rem 0;
+    }
+
+    .perfil-3d {
+      border-radius: 30px;
+      padding: 2rem;
+      color: white;
+      transform-style: preserve-3d;
+      transform: translateZ(20px) rotateY(4deg);
+      transition: all 0.4s cubic-bezier(0.2, 0.8, 0.4, 1.2);
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 20px 30px -12px black;
+    }
+
+    .perfil-3d:hover {
+      transform: translateZ(50px) rotateY(0deg) scale(1.08);
+      box-shadow: 0 30px 60px -15px var(--laranja-vivo);
+    }
+
+    .perfil-3d.agressivo { background: linear-gradient(145deg, #F04E35, #b3371f); }
+    .perfil-3d.passivo { background: linear-gradient(145deg, #ED4F36, #b33d2a); }
+    .perfil-3d.indeciso { background: linear-gradient(145deg, #7D1756, #4f1038); }
+    .perfil-3d.racional { background: linear-gradient(145deg, #7B1556, #4e0d37); }
+
+    /* ----- fluxograma 3D ----- */
+    .fluxograma-3d {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 1rem;
+      margin: 4rem 0;
+      transform-style: preserve-3d;
+      transform: perspective(1200px) rotateX(8deg);
+    }
+
+    .fluxo-item-3d {
+      background: var(--grad-1);
+      color: #0a0a0a;
+      padding: 1.5rem 2.8rem;
+      border-radius: 60px;
+      font-weight: 700;
+      font-size: 1.2rem;
+      transform: translateZ(10px);
+      box-shadow: 0 20px 30px -10px var(--laranja-vivo);
+      animation: float3d 3s ease-in-out infinite;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      font-family: 'Unbounded', sans-serif;
+    }
+
+    .arrow-3d {
+      font-size: 2.2rem;
+      color: var(--laranja-vivo);
+      filter: drop-shadow(0 0 12px var(--laranja-vivo));
+    }
+
+    @keyframes float3d {
+      0%, 100% { transform: translateZ(10px) translateY(0); }
+      50% { transform: translateZ(40px) translateY(-15px); }
+    }
+
+    /* ----- livro 3D ----- */
+    .livro-container-3d {
+      perspective: 2000px;
+      display: flex;
+      justify-content: center;
+      margin: 4rem 0;
+    }
+
+    .livro-3d {
+      font-size: 14rem;
+      display: inline-block;
+      transform: rotateY(20deg) rotateX(12deg) translateZ(30px);
+      transition: all 0.5s cubic-bezier(0.2, 1, 0.3, 1);
+      cursor: pointer;
+      filter: drop-shadow(30px 30px 25px rgba(240, 78, 53, 0.5));
+      animation: livroFloat 5s infinite alternate;
+      line-height: 1;
+    }
+
+    .livro-3d:hover {
+      transform: rotateY(0deg) rotateX(0deg) scale(1.2);
+      filter: drop-shadow(40px 40px 35px var(--laranja-vivo));
+    }
+
+    @keyframes livroFloat {
+      0% { transform: rotateY(20deg) rotateX(10deg) translateY(0); }
+      100% { transform: rotateY(25deg) rotateX(15deg) translateY(-25px); }
+    }
+
+    /* ----- botões 3D ----- */
+    .btn-3d {
+      padding: 1.2rem 3rem;
+      background: var(--grad-1);
+      border: none;
+      border-radius: 60px;
+      color: #0a0a0a;
+      font-weight: 700;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transform: perspective(600px) translateZ(0);
+      transition: all 0.4s ease;
+      position: relative;
+      overflow: hidden;
+      font-family: 'Unbounded', sans-serif;
+      font-weight: 600;
+    }
+
+    .btn-3d::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+      transition: left 0.6s ease;
+    }
+
+    .btn-3d:hover {
+      transform: perspective(600px) translateZ(30px) scale(1.05);
+      box-shadow: 0 25px 40px -10px var(--laranja-vivo);
+    }
+
+    .btn-3d:hover::before {
+      left: 100%;
+    }
+
+    /* simulação 3D */
+    .simulacao-3d {
+      background: rgba(125, 23, 86, 0.15);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--laranja-vivo);
+      border-radius: 70px;
+      padding: 4rem;
+      transform-style: preserve-3d;
+      transform: perspective(1200px) rotateX(4deg);
+      box-shadow: 0 40px 70px -20px var(--roxo-profundo);
+    }
+
+    .botoes-resposta-3d {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 3rem 0;
+    }
+
+    .btn-resposta-3d {
+      padding: 1.2rem 2.8rem;
+      border: none;
+      border-radius: 50px;
+      font-weight: 700;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transform: perspective(600px) translateZ(0);
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+      font-family: 'Unbounded', sans-serif;
+    }
+
+    .btn-resposta-3d.agressiva { background: #F04E35; color: white; }
+    .btn-resposta-3d.passiva { background: #ED4F36; color: white; }
+    .btn-resposta-3d.assertiva { background: #7D1756; color: white; }
+
+    .btn-resposta-3d:hover {
+      transform: perspective(600px) translateZ(40px) scale(1.1);
+      box-shadow: 0 20px 30px -8px currentColor;
+      border-color: white;
+    }
+
+    #consequencia-3d {
+      font-size: 1.6rem;
+      text-align: center;
+      padding: 2.5rem;
+      background: rgba(0,0,0,0.5);
+      border-radius: 60px;
+      margin-top: 2rem;
+      border: 1px solid var(--laranja-vivo);
+      backdrop-filter: blur(12px);
+      font-weight: 300;
+    }
+
+    /* footer */
+    .footer-3d {
+      background: rgba(10,10,10,0.95);
+      backdrop-filter: blur(12px);
+      padding: 5rem 2rem;
+      text-align: center;
+      border-top: 2px solid var(--laranja-vivo);
+      transform-style: preserve-3d;
+      transform: perspective(1000px) rotateX(2deg);
+    }
+
+    /* parallax layers (com nova cor) */
+    .parallax-layer {
+      position: absolute;
+      pointer-events: none;
+      opacity: 0.08;
+      font-size: 18rem;
+      font-weight: 900;
+      color: var(--laranja-vivo);
+      white-space: nowrap;
+      z-index: -1;
+      text-transform: uppercase;
+    }
+
+    /* responsividade */
+    @media (max-width: 1200px) {
+      .perfis-grid-3d { grid-template-columns: repeat(2, 1fr); }
+      .timeline-3d { flex-direction: column; }
+      nav { padding: 1.5rem 2rem; }
+    }
+
+    @media (max-width: 768px) {
+      section { padding: 6rem 1.5rem; }
+      .perfis-grid-3d { grid-template-columns: 1fr; }
+      .nav-links { display: none; } /* simplificar mobile */
+      .logo { font-size: 1.8rem; }
+      h2 { font-size: 3rem; }
+      #home h1 {
+        font-size: clamp(2.2rem, 8vw, 4rem); /* AJUSTADO: tamanho menor para mobile */
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="cursor" id="cursor"></div>
+  <div class="cursor-follower" id="cursor-follower"></div>
+
+  <div id="canvas-container"></div>
+
+  <!-- Parallax layers com nova identidade -->
+  <div class="parallax-layer" style="top: 5%; left: -5%;">#R360</div>
+  <div class="parallax-layer" style="bottom: 15%; right: -10%; transform: rotate(20deg);">RECLAMAÇÃO</div>
+  <div class="parallax-layer" style="top: 40%; left: 60%;">PURPLE</div>
+
+  <nav>
+    <div class="logo">R360°</div>
+    <div class="nav-links">
+      <a href="#home">Home</a>
+      <a href="#conceito">Conceito</a>
+      <a href="#etapas">Etapas</a>
+      <a href="#gestao">Gestão</a>
+      <a href="#solinca">Projeto</a>
+      <a href="#conflito">Conflito</a>
+    </div>
+  </nav>
+
+  <!-- HOME -->
+  <section id="home">
+    <div class="section-content">
+      <h1>
+        <span class="gradient-text">TRANSFORMAR</span><br>
+        <span class="gradient-text">RECLAMAÇÕES</span><br>
+        <span class="gradient-text">EM VALOR</span>
+      </h1>
+      <p style="font-size: 1.8rem; max-width: 700px; margin-bottom: 3rem; font-weight: 300; color: #f0f0f0;">Experiência interativa sobre gestão de reclamações no desporto · UFCD 7266</p>
+      <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+        <button class="btn-3d" onclick="scrollToSection('conceito')">EXPLORAR</button>
+        <button class="btn-3d" style="background: transparent; color: var(--laranja-vivo); border: 2px solid var(--laranja-vivo);" onclick="scrollToSection('solinca')">VER PROJETO</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONCEITO -->
+  <section id="conceito">
+    <div class="section-content">
+      <h2>01 / CONCEITO</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center;">
+        <div>
+          <p style="font-size: 2rem; font-weight: 300; margin-bottom: 2rem;">Uma reclamação é a manifestação de insatisfação, mas aqui mostramos o potencial de melhoria.</p>
+          <div class="quote" style="font-size: 2.2rem; font-weight: 800; color: var(--laranja-vivo);">“Não é o fim. É o início.”</div>
+        </div>
+        <div>
+          <div class="cards-grid-3d" style="grid-template-columns: 1fr;">
+            <div class="card-3d">
+              <i class="fas fa-users"></i>
+              <h3 style="font-size: 2rem;">Tipologias</h3>
+              <p style="font-size: 1.3rem;">Agressivo · Passivo · Indeciso · Racional</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="font-size: 3.5rem; margin: 5rem 0 2rem;">PERFIS DE CLIENTES</h3>
+      <div class="perfis-grid-3d">
+        <div class="perfil-3d agressivo">
+          <h3 style="font-size: 2.2rem;">🔴 Agressivo</h3>
+          <p style="margin: 1rem 0;">Exaltado, acusatório</p>
+          <p><strong>Estratégia:</strong> Validar sentimentos</p>
+        </div>
+        <div class="perfil-3d passivo">
+          <h3 style="font-size: 2.2rem;">🟡 Passivo</h3>
+          <p style="margin: 1rem 0;">Tímido, evita conflito</p>
+          <p><strong>Estratégia:</strong> Incentivar, perguntas abertas</p>
+        </div>
+        <div class="perfil-3d indeciso">
+          <h3 style="font-size: 2.2rem;">🔵 Indeciso</h3>
+          <p style="margin: 1rem 0;">Dúvidas constantes</p>
+          <p><strong>Estratégia:</strong> Simplificar opções</p>
+        </div>
+        <div class="perfil-3d racional">
+          <h3 style="font-size: 2.2rem;">🟢 Racional</h3>
+          <p style="margin: 1rem 0;">Lógico, detalhista</p>
+          <p><strong>Estratégia:</strong> Dados concretos</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ETAPAS -->
+  <section id="etapas">
+    <div class="section-content">
+      <h2>02 / ETAPAS</h2>
+      <div class="timeline-3d">
+        <div class="timeline-step-3d"><div class="step-number">01</div><h3>Escutar</h3><p>Sem interromper · Atenção plena</p></div>
+        <div class="timeline-step-3d"><div class="step-number">02</div><h3>Empatia</h3><p>“Compreendo a sua situação”</p></div>
+        <div class="timeline-step-3d"><div class="step-number">03</div><h3>Analisar</h3><p>Verificar factos</p></div>
+        <div class="timeline-step-3d"><div class="step-number">04</div><h3>Resolver</h3><p>Solução clara</p></div>
+        <div class="timeline-step-3d"><div class="step-number">05</div><h3>Acompanhar</h3><p>Follow-up</p></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 4rem;">
+        <div class="card-3d"><i class="fas fa-comment-dots"></i><h3>Comunicação Verbal</h3><p>Tom calmo · Vocabulário positivo</p></div>
+        <div class="card-3d"><i class="fas fa-people-arrows"></i><h3>Não Verbal</h3><p>Postura aberta · Contacto visual</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GESTÃO -->
+  <section id="gestao">
+    <div class="section-content">
+      <h2>03 / GESTÃO</h2>
+      <div class="fluxograma-3d">
+        <span class="fluxo-item-3d"><i class="fas fa-inbox"></i> RECEÇÃO</span>
+        <span class="arrow-3d"><i class="fas fa-arrow-right"></i></span>
+        <span class="fluxo-item-3d"><i class="fas fa-edit"></i> REGISTO</span>
+        <span class="arrow-3d"><i class="fas fa-arrow-right"></i></span>
+        <span class="fluxo-item-3d"><i class="fas fa-search"></i> ANÁLISE</span>
+        <span class="arrow-3d"><i class="fas fa-arrow-right"></i></span>
+        <span class="fluxo-item-3d"><i class="fas fa-reply"></i> RESPOSTA</span>
+        <span class="arrow-3d"><i class="fas fa-arrow-right"></i></span>
+        <span class="fluxo-item-3d"><i class="fas fa-chart-line"></i> MELHORIA</span>
+      </div>
+      <h3 style="font-size: 3rem; margin: 4rem 0;">ERROS A EVITAR</h3>
+      <div class="cards-grid-3d">
+        <div class="card-3d" style="border-color: #F04E35;"><i class="fas fa-ban"></i><h3>Ignorar</h3></div>
+        <div class="card-3d" style="border-color: #F04E35;"><i class="fas fa-comment-slash"></i><h3>Discutir</h3></div>
+        <div class="card-3d" style="border-color: #F04E35;"><i class="fas fa-fingerprint"></i><h3>Culpar</h3></div>
+        <div class="card-3d" style="border-color: #F04E35;"><i class="fas fa-hourglass-half"></i><h3>Demorar</h3></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEGISLAÇÃO -->
+  <section>
+    <div class="section-content">
+      <h2>04 / LEGISLAÇÃO</h2>
+      <div class="livro-container-3d">
+        <span class="livro-3d">📘</span>
+      </div>
+      <div style="text-align: center; margin: 4rem 0;">
+        <h3 style="font-size: 3rem;">Livro de Reclamações</h3>
+        <p style="font-size: 1.8rem;">Físico · Eletrónico · Resposta em 15 dias</p>
+      </div>
+      <div class="card-3d" style="max-width: 800px; margin: 0 auto; text-align: center;">
+        <i class="fas fa-heart" style="color: var(--laranja-vivo);"></i>
+        <h3>Cliente satisfeito vs fidelizado</h3>
+        <p style="font-size: 2rem;">“Resolver é importante. Surpreender é fidelizar.”</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOLINCA -->
+  <section id="solinca">
+    <div class="section-content">
+      <h2>05 / SOLINCA</h2>
+      <div class="cards-grid-3d">
+        <div class="card-3d"><i class="fas fa-dumbbell"></i><h3>Aulas lotadas</h3></div>
+        <div class="card-3d"><i class="fas fa-euro-sign"></i><h3>Pagamentos</h3></div>
+        <div class="card-3d"><i class="fas fa-times-circle"></i><h3>Cancelamentos</h3></div>
+        <div class="card-3d"><i class="fas fa-tools"></i><h3>Manutenção</h3></div>
+        <div class="card-3d"><i class="fas fa-shower"></i><h3>Higiene</h3></div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3,1fr); gap:2rem; margin-top:4rem;">
+        <div class="card-3d"><i class="fas fa-clock"></i><h4>Resposta em 48h</h4></div>
+        <div class="card-3d"><i class="fas fa-phone-alt"></i><h4>Múltiplos canais</h4></div>
+        <div class="card-3d"><i class="fas fa-chart-bar"></i><h4>Melhoria contínua</h4></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONFLITO -->
+  <section id="conflito">
+    <div class="section-content">
+      <h2>06 / CONFLITO</h2>
+      <div class="simulacao-3d">
+        <h3 style="font-size: 3rem; text-align: center;">🎭 Cancelamento inesperado de aula</h3>
+        <div class="botoes-resposta-3d">
+          <button class="btn-resposta-3d agressiva" id="agressiva-3d"><i class="fas fa-bolt"></i> Agressiva</button>
+          <button class="btn-resposta-3d passiva" id="passiva-3d"><i class="fas fa-silence"></i> Passiva</button>
+          <button class="btn-resposta-3d assertiva" id="assertiva-3d"><i class="fas fa-check-circle"></i> Assertiva</button>
+        </div>
+        <div id="consequencia-3d">👉 Clica numa opção para ver a consequência</div>
+        <div style="display: grid; grid-template-columns: repeat(2,1fr); gap:1rem; margin-top:3rem;">
+          <div class="card-3d" style="padding:1rem;"><i class="fas fa-lungs"></i> Respiração 4-7-8</div>
+          <div class="card-3d" style="padding:1rem;"><i class="fas fa-person-walking"></i> Postura profissional</div>
+          <div class="card-3d" style="padding:1rem;"><i class="fas fa-bullseye"></i> Foco na solução</div>
+          <div class="card-3d" style="padding:1rem;"><i class="fas fa-brain"></i> Separar pessoa/problema</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer-3d">
+    <h3 class="gradient-text" style="font-size: 3.5rem;">RECLAMAÇÃO 360º</h3>
+    <p style="font-size: 1.4rem; margin: 2rem 0;">UFCD 7266 – Gestão e Tratamento das Reclamações</p>
+    <p style="font-size: 1.4rem;">Afonso Soares · Nº1 · 12ºGD · Professora Conceição Menezes</p>
+    <p style="margin-top: 3rem; opacity: 0.5;">© 2025 · Experiência imersiva</p>
+  </footer>
+
+  <script>
+    // Smooth scroll com offset
+    function scrollToSection(id) {
+      const section = document.getElementById(id);
+      if (section) {
+        gsap.to(window, {duration: 1.5, scrollTo: {y: section, offsetY: 80}, ease: "power3.inOut"});
+      }
+    }
+
+    // Links da navbar
+    document.querySelectorAll('.nav-links a').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const id = link.getAttribute('href').substring(1);
+        scrollToSection(id);
+      });
+    });
+
+    // Three.js com cores da nova paleta
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    // Partículas com tom laranja/roxo
+    const particlesGeometry = new THREE.BufferGeometry();
+    const particlesCount = 2500;
+    const posArray = new Float32Array(particlesCount * 3);
+    const colorArray = new Float32Array(particlesCount * 3);
+    
+    for(let i = 0; i < particlesCount * 3; i += 3) {
+      posArray[i] = (Math.random() - 0.5) * 35;
+      posArray[i+1] = (Math.random() - 0.5) * 35;
+      posArray[i+2] = (Math.random() - 0.5) * 35;
+      
+      // Cores aleatórias entre laranja e roxo
+      const choice = Math.random();
+      if (choice < 0.5) {
+        colorArray[i] = 240/255;   // R laranja
+        colorArray[i+1] = 78/255;  // G
+        colorArray[i+2] = 53/255;  // B
+      } else {
+        colorArray[i] = 125/255;   // R roxo
+        colorArray[i+1] = 23/255;  // G
+        colorArray[i+2] = 86/255;  // B
+      }
+    }
+    
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
+    
+    const particlesMaterial = new THREE.PointsMaterial({
+      size: 0.03,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.5,
+      blending: THREE.AdditiveBlending
+    });
+    
+    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(particlesMesh);
+    
+    // Objeto central (torção com wireframe nas cores)
+    const geo = new THREE.TorusKnotGeometry(1.2, 0.3, 128, 16);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xF04E35,
+      emissive: 0x7D1756,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.25
+    });
+    const knot = new THREE.Mesh(geo, mat);
+    scene.add(knot);
+
+    // Luzes
+    const light1 = new THREE.PointLight(0xF04E35, 1, 10);
+    light1.position.set(2, 3, 4);
+    scene.add(light1);
+    const light2 = new THREE.PointLight(0x7D1756, 1, 10);
+    light2.position.set(-3, -1, 3);
+    scene.add(light2);
+    scene.add(new THREE.AmbientLight(0x404060));
+
+    camera.position.z = 6;
+
+    function animateThree() {
+      requestAnimationFrame(animateThree);
+      particlesMesh.rotation.y += 0.0003;
+      particlesMesh.rotation.x += 0.00015;
+      knot.rotation.x += 0.005;
+      knot.rotation.y += 0.008;
+      renderer.render(scene, camera);
+    }
+    animateThree();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Cursor personalizado
+    const cursor = document.getElementById('cursor');
+    const follower = document.getElementById('cursor-follower');
+    document.addEventListener('mousemove', (e) => {
+      gsap.to(cursor, { x: e.clientX, y: e.clientY, duration: 0.1 });
+      gsap.to(follower, { x: e.clientX, y: e.clientY, duration: 0.3 });
+    });
+
+    document.querySelectorAll('a, button').forEach(el => {
+      el.addEventListener('mouseenter', () => {
+        gsap.to(cursor, { scale: 1.8, background: 'rgba(240,78,53,0.3)' });
+        gsap.to(follower, { scale: 1.8, background: 'rgba(240,78,53,0.15)' });
+      });
+      el.addEventListener('mouseleave', () => {
+        gsap.to(cursor, { scale: 1, background: 'transparent' });
+        gsap.to(follower, { scale: 1, background: 'rgba(240,78,53,0.1)' });
+      });
+    });
+
+    // GSAP ScrollTrigger animações (com triggers mais dinâmicos)
+    gsap.registerPlugin(ScrollTrigger);
+
+    document.querySelectorAll('h2').forEach(title => {
+      gsap.fromTo(title, 
+        { opacity: 0, y: 120, rotateX: 20 },
+        { opacity: 1, y: 0, rotateX: 0, duration: 1.2, scrollTrigger: { trigger: title, start: 'top 85%', end: 'top 40%', scrub: 1.2 } }
+      );
+    });
+
+    document.querySelectorAll('.card-3d, .perfil-3d, .timeline-step-3d').forEach(card => {
+      gsap.fromTo(card,
+        { opacity: 0, y: 100, rotateY: 15 },
+        { opacity: 1, y: 0, rotateY: 5, duration: 1, scrollTrigger: { trigger: card, start: 'top 90%', end: 'top 60%', scrub: 1 } }
+      );
+    });
+
+    // Simulação interativa (botões corrigidos)
+    const consDiv = document.getElementById('consequencia-3d');
+    document.getElementById('agressiva-3d').addEventListener('click', () => {
+      consDiv.innerHTML = '❌ Cliente revolta-se, queixa nas redes sociais, perda total.';
+      consDiv.style.background = 'rgba(240,78,53,0.25)';
+      consDiv.style.borderColor = '#F04E35';
+    });
+    document.getElementById('passiva-3d').addEventListener('click', () => {
+      consDiv.innerHTML = '⚠️ Cliente sente-se ignorado, nunca mais volta.';
+      consDiv.style.background = 'rgba(237,79,54,0.25)';
+      consDiv.style.borderColor = '#ED4F36';
+    });
+    document.getElementById('assertiva-3d').addEventListener('click', () => {
+      consDiv.innerHTML = '✅ Cliente compreendido, confiança reforçada, fidelização.';
+      consDiv.style.background = 'rgba(125,23,86,0.25)';
+      consDiv.style.borderColor = '#7D1756';
+    });
+
+    // Parallax layers com scroll
+    window.addEventListener('scroll', () => {
+      const scrolled = window.pageYOffset;
+      gsap.to('.parallax-layer', { y: scrolled * 0.25, rotation: scrolled * 0.01, duration: 0.3 });
+    });
+  </script>
+</body>
+</html>
